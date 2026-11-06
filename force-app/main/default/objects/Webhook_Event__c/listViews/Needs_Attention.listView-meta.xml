@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Needs_Attention</fullName>
+    <columns>NAME</columns>
+    <columns>Source__c</columns>
+    <columns>Event_Type__c</columns>
+    <columns>External_Event_Id__c</columns>
+    <columns>Status__c</columns>
+    <columns>Attempts__c</columns>
+    <columns>Handler_Class__c</columns>
+    <columns>Received_At__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Status__c</field>
+        <operation>equals</operation>
+        <value>Failed</value>
+    </filters>
+    <label>Needs Attention</label>
+</ListView>

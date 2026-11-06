@@ -3,7 +3,8 @@
  *
  * Two signing schemes cover most senders: the raw body (GitHub, Shopify, many SaaS tools) and
  * "<unix timestamp>.<body>" (Stripe and the tools that copied it), where the timestamp also bounds replays.
- * The comparison is constant-time so a byte-by-byte mismatch cannot be timed.
+ * The comparison is constant-time so a byte-by-byte mismatch cannot be timed. More than one secret may be
+ * offered, so a secret can be rotated without a window where deliveries are rejected.
  */
 public with sharing class WebhookSignature {
     public static final Integer DEFAULT_TOLERANCE_SECONDS = 300;
@@ -17,10 +18,17 @@ public with sharing class WebhookSignature {
         public Boolean valid { get; private set; }
         /** Short, safe reason for the log; never echoed to the sender. */
         public String reason { get; private set; }
+        /** Which of the offered secrets matched: 0 for the current one, 1 for the previous one. Null unless valid. */
+        public Integer secretIndex { get; private set; }
 
         public Verdict(Boolean valid, String reason) {
             this.valid = valid;
             this.reason = reason;
+        }
+
+        public Verdict(Integer secretIndex) {
+            this.valid = true;
+            this.secretIndex = secretIndex;
         }
     }
 
@@ -35,7 +43,18 @@ public with sharing class WebhookSignature {
      * @param now         the current time, injectable for tests
      */
     public static Verdict verify(Blob body, String header, String prefix, String secret, Scheme signingScheme, String timestamp, Integer tolerance, Datetime now) {
-        if (String.isBlank(secret)) {
+        return verify(body, header, prefix, new List<String>{ secret }, signingScheme, timestamp, tolerance, now);
+    }
+
+    /** As above, trying each secret in turn: the current one first, then the previous one while a rotation is in progress. */
+    public static Verdict verify(Blob body, String header, String prefix, List<String> secrets, Scheme signingScheme, String timestamp, Integer tolerance, Datetime now) {
+        List<String> usable = new List<String>();
+        for (String secret : secrets == null ? new List<String>() : secrets) {
+            if (String.isNotBlank(secret)) {
+                usable.add(secret);
+            }
+        }
+        if (usable.isEmpty()) {
             return new Verdict(false, 'no secret configured');
         }
         if (String.isBlank(header)) {
@@ -62,11 +81,13 @@ public with sharing class WebhookSignature {
         } else {
             signed = body == null ? '' : body.toString();
         }
-        String expected = hmacHex(signed, secret);
-        if (!constantTimeEquals(expected, presented.toLowerCase())) {
-            return new Verdict(false, 'signature mismatch');
+        String lowered = presented.toLowerCase();
+        for (Integer i = 0; i < usable.size(); i++) {
+            if (constantTimeEquals(hmacHex(signed, usable[i]), lowered)) {
+                return new Verdict(i);
+            }
         }
-        return new Verdict(true, null);
+        return new Verdict(false, 'signature mismatch');
     }
 
     /** Lower-case hex HMAC-SHA256 of the text with the secret. */

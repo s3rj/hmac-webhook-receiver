@@ -111,6 +111,33 @@ private class WebhookReceiverTest {
         Assert.isNull(rejected.Payload__c, 'forged payload not stored');
         Assert.areEqual('signature mismatch', rejected.Error_Message__c, 'reason for the admin');
         Assert.isTrue(RecordingWebhookHandler.handled.isEmpty(), 'nothing processed');
+        Assert.areEqual(1, WebhookEvents.lastAlerts.size(), 'an alert was raised');
+        Assert.areEqual('Rejected', WebhookEvents.lastAlerts[0].Kind__c, 'alert kind');
+        Assert.areEqual('Demo', WebhookEvents.lastAlerts[0].Source__c, 'alert names the source');
+        Assert.areEqual('signature mismatch', WebhookEvents.lastAlerts[0].Reason__c, 'alert carries the reason');
+        Assert.areEqual(rejected.Id, WebhookEvents.lastAlerts[0].Event_Id__c, 'alert points at the record');
+    }
+
+    @IsTest
+    static void deliveriesSignedWithThePreviousSecretAreAcceptedAndFlagged() {
+        setup();
+        WebhookSources.secretOverrides.put('demo', 'rotated-secret');
+        WebhookSources.previousSecretOverrides = new Map<String, String>{ 'demo' => SECRET };
+        String oldBody = '{"id":"evt_5","type":"contact.unsubscribed"}';
+        String newBody = '{"id":"evt_6","type":"contact.unsubscribed"}';
+        String ts = String.valueOf(System.now().getTime() / 1000);
+
+        Map<String, Object> signedWithOld = post('demo', oldBody, demoHeaders(oldBody, System.now()));
+        Map<String, Object> signedWithNew = post('demo', newBody, new Map<String, String>{ 'X-Timestamp' => ts, 'X-Signature' => WebhookSignature.hmacHex(ts + '.' + newBody, 'rotated-secret') });
+
+        Assert.areEqual(200, signedWithOld.get('statusCode'), 'old secret still accepted during the rotation');
+        Assert.areEqual('Previous', [SELECT Signed_With__c FROM Webhook_Event__c WHERE External_Event_Id__c = 'Demo:evt_5'].Signed_With__c, 'flagged for the admin');
+        Assert.areEqual(200, signedWithNew.get('statusCode'), 'new secret accepted');
+        Assert.areEqual('Current', [SELECT Signed_With__c FROM Webhook_Event__c WHERE External_Event_Id__c = 'Demo:evt_6'].Signed_With__c, 'current');
+
+        WebhookSources.previousSecretOverrides = new Map<String, String>();
+        String lateBody = '{"id":"evt_7","type":"contact.unsubscribed"}';
+        Assert.areEqual(401, post('demo', lateBody, demoHeaders(lateBody, System.now())).get('statusCode'), 'old secret rejected once the rotation is over');
     }
 
     @IsTest

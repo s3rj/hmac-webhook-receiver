@@ -1,7 +1,7 @@
 /**
  * Runs handlers outside the HTTP request so the sender gets its 200 in milliseconds and a slow or failing
- * handler cannot make the sender retry (and redeliver) the event. A Finalizer marks the events Failed if the
- * job itself dies from a limit exception, so nothing stays "Received" forever.
+ * handler cannot make the sender retry (and redeliver) the event. A Finalizer marks the events Failed and
+ * raises an alert if the job itself dies from a limit exception, so nothing stays "Received" forever.
  */
 public without sharing class WebhookProcessor implements Queueable {
     private final List<Id> eventIds;
@@ -37,17 +37,21 @@ public without sharing class WebhookProcessor implements Queueable {
             if (context.getResult() == ParentJobResult.SUCCESS) {
                 return;
             }
+            String reason = 'Processor aborted: ' + context.getException().getMessage();
             List<Webhook_Event__c> stranded = [
-                SELECT Id, Attempts__c
+                SELECT Id, Source__c, Event_Type__c, External_Event_Id__c, Attempts__c
                 FROM Webhook_Event__c
                 WHERE Id IN :eventIds AND Status__c = :WebhookEvents.STATUS_RECEIVED
             ];
             for (Webhook_Event__c event : stranded) {
                 event.Status__c = WebhookEvents.STATUS_FAILED;
                 event.Attempts__c = (event.Attempts__c == null ? 0 : event.Attempts__c) + 1;
-                event.Error_Message__c = WebhookEvents.clip('Processor aborted: ' + context.getException().getMessage(), WebhookEvents.ERROR_MAX);
+                event.Error_Message__c = WebhookEvents.clip(reason, WebhookEvents.ERROR_MAX);
             }
             update stranded;
+            for (Webhook_Event__c event : stranded) {
+                WebhookEvents.alert(WebhookEvents.ALERT_PROCESSOR_ABORTED, event, reason);
+            }
         }
     }
 }

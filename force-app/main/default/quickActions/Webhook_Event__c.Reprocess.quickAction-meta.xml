@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Re-run the handler for this event, now: after a handler fix (Failed), after registering a handler (Ignored), or for an event stuck in Received.</description>
+    <flowDefinition>Reprocess_Webhook_Event</flowDefinition>
+    <label>Reprocess</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <type>Flow</type>
+</QuickAction>

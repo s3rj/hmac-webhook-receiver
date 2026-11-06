@@ -1,5 +1,6 @@
 /**
- * Persistence for Webhook_Event__c: store with deduplication, and status transitions.
+ * Persistence for Webhook_Event__c: store with deduplication, status transitions, and the Webhook Alert
+ * platform event that lets a Flow page someone when something is rejected or fails.
  */
 public without sharing class WebhookEvents {
     public static final String STATUS_RECEIVED = 'Received';
@@ -8,8 +9,18 @@ public without sharing class WebhookEvents {
     public static final String STATUS_IGNORED = 'Ignored';
     public static final String STATUS_REJECTED = 'Rejected';
 
+    public static final String SIGNED_WITH_CURRENT = 'Current';
+    public static final String SIGNED_WITH_PREVIOUS = 'Previous';
+
+    public static final String ALERT_REJECTED = 'Rejected';
+    public static final String ALERT_HANDLER_FAILED = 'Handler Failed';
+    public static final String ALERT_PROCESSOR_ABORTED = 'Processor Aborted';
+
     public static final Integer PAYLOAD_MAX = 131072;
     public static final Integer ERROR_MAX = 32768;
+
+    @TestVisible
+    private static List<Webhook_Alert__e> lastAlerts = new List<Webhook_Alert__e>();
 
     public class StoreResult {
         public Webhook_Event__c event { get; private set; }
@@ -46,7 +57,7 @@ public without sharing class WebhookEvents {
         throw new DmlException('Could not store webhook event: ' + result.getErrors()[0].getMessage());
     }
 
-    /** Records a delivery that failed verification: no payload, so a forged body is never persisted. */
+    /** Records a delivery that failed verification: no payload, so a forged body is never persisted. Raises an alert. */
     public static Webhook_Event__c rejected(String sourceName, String reason, Map<String, String> headers) {
         Webhook_Event__c event = new Webhook_Event__c(
             Source__c = clip(sourceName, 80),
@@ -56,6 +67,7 @@ public without sharing class WebhookEvents {
             Error_Message__c = clip(reason, ERROR_MAX)
         );
         insert event;
+        alert(ALERT_REJECTED, event, reason);
         return event;
     }
 
@@ -69,6 +81,7 @@ public without sharing class WebhookEvents {
         update event;
     }
 
+    /** Records a handler failure with the reason and stack trace, and raises an alert. */
     public static void markFailed(Webhook_Event__c event, String handlerClass, Boolean async, Exception error) {
         event.Status__c = STATUS_FAILED;
         event.Handler_Class__c = handlerClass;
@@ -76,12 +89,30 @@ public without sharing class WebhookEvents {
         event.Attempts__c = (event.Attempts__c == null ? 0 : event.Attempts__c) + 1;
         event.Error_Message__c = clip(error.getTypeName() + ': ' + error.getMessage() + '\n' + error.getStackTraceString(), ERROR_MAX);
         update event;
+        alert(ALERT_HANDLER_FAILED, event, error.getTypeName() + ': ' + error.getMessage());
     }
 
     public static void markIgnored(Webhook_Event__c event) {
         event.Status__c = STATUS_IGNORED;
         event.Processed_At__c = System.now();
         update event;
+    }
+
+    /**
+     * Publishes a Webhook Alert so a platform-event-triggered Flow can post to a channel, open a case, or page
+     * someone. Kinds: Rejected (bad signature or stale timestamp), Handler Failed, Processor Aborted.
+     */
+    public static void alert(String kind, Webhook_Event__c event, String reason) {
+        Webhook_Alert__e alert = new Webhook_Alert__e(
+            Kind__c = kind,
+            Source__c = clip(event.Source__c, 80),
+            Event_Type__c = clip(event.Event_Type__c, 255),
+            External_Event_Id__c = clip(event.External_Event_Id__c, 255),
+            Event_Id__c = event.Id,
+            Reason__c = clip(reason, ERROR_MAX)
+        );
+        lastAlerts.add(alert);
+        EventBus.publish(alert);
     }
 
     public static String clip(String value, Integer max) {

@@ -63,4 +63,29 @@ private class WebhookSourcesTest {
         WebhookSources.secretOverrides = new Map<String, String>{ 'demo' => 'override' };
         Assert.areEqual('override', WebhookSources.secretFor('Demo'), 'test override wins');
     }
+
+    @IsTest
+    static void bothSecretsAreOfferedWhileARotationIsInProgress() {
+        Webhook_Secret__c record = new Webhook_Secret__c(Name = 'Demo', Secret__c = 'new', Previous_Secret__c = 'old');
+        insert record;
+        Assert.areEqual(new List<String>{ 'new', 'old' }, WebhookSources.secretsFor('Demo'), 'current first, then previous');
+
+        record.Previous_Secret__c = null;
+        update record;
+        Assert.areEqual(new List<String>{ 'new' }, WebhookSources.secretsFor('Demo'), 'rotation finished');
+        Assert.isTrue(WebhookSources.secretsFor('Nope').isEmpty(), 'no record, no secrets');
+
+        WebhookSources.secretOverrides = new Map<String, String>{ 'demo' => 'o1' };
+        Assert.areEqual(new List<String>{ 'o1' }, WebhookSources.secretsFor('Demo'), 'override without a previous secret');
+        WebhookSources.previousSecretOverrides = new Map<String, String>{ 'demo' => 'o0' };
+        Assert.areEqual(new List<String>{ 'o1', 'o0' }, WebhookSources.secretsFor('Demo'), 'both overrides');
+    }
+
+    @IsTest
+    static void retentionComesFromTheSourceOrTheDefault() {
+        Assert.areEqual(30, WebhookSources.find('Demo').retentionDays, 'shipped Demo source');
+        Assert.areEqual(30, WebhookSources.find('Github').retentionDays, 'blank falls back to the default');
+        Assert.areEqual(30, WebhookSources.retentionDaysFor('nope'), 'unknown source gets the default');
+        Assert.areEqual(14, new WebhookSources.Source('X').withRetention(14).retentionDays, 'builder');
+    }
 }

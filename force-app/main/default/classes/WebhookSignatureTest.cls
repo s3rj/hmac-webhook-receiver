@@ -55,6 +55,30 @@ private class WebhookSignatureTest {
     }
 
     @IsTest
+    static void aRotationAcceptsThePreviousSecretAndSaysWhichOneMatched() {
+        String body = '{"id":"3"}';
+        Blob payload = Blob.valueOf(body);
+        List<String> secrets = new List<String>{ 'rotated-secret', SECRET };
+        WebhookSignature.Scheme plain = WebhookSignature.Scheme.BODY;
+
+        WebhookSignature.Verdict current = WebhookSignature.verify(payload, WebhookSignature.hmacHex(body, 'rotated-secret'), null, secrets, plain, null, null, NOW);
+        Assert.isTrue(current.valid, 'current secret accepted');
+        Assert.areEqual(0, current.secretIndex, 'signed with the current secret');
+
+        WebhookSignature.Verdict previous = WebhookSignature.verify(payload, WebhookSignature.hmacHex(body, SECRET), null, secrets, plain, null, null, NOW);
+        Assert.isTrue(previous.valid, 'previous secret still accepted');
+        Assert.areEqual(1, previous.secretIndex, 'signed with the previous secret');
+
+        WebhookSignature.Verdict neither = WebhookSignature.verify(payload, WebhookSignature.hmacHex(body, 'other'), null, secrets, plain, null, null, NOW);
+        Assert.isFalse(neither.valid, 'unknown secret rejected');
+        Assert.areEqual('signature mismatch', neither.reason, 'reason');
+        Assert.isNull(neither.secretIndex, 'no match, no index');
+
+        Assert.areEqual('no secret configured', WebhookSignature.verify(payload, 'abc', null, new List<String>{ '', null }, plain, null, null, NOW).reason, 'blanks do not count');
+        Assert.areEqual(0, bodyVerdict(body, WebhookSignature.hmacHex(body, SECRET), null, SECRET).secretIndex, 'single-secret calls report index 0');
+    }
+
+    @IsTest
     static void constantTimeEqualsHandlesEdgeCases() {
         Assert.isTrue(WebhookSignature.constantTimeEquals('abcd', 'abcd'), 'equal');
         Assert.isFalse(WebhookSignature.constantTimeEquals('abcd', 'abce'), 'last char differs');

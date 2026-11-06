@@ -13,6 +13,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>WebhookEventPurge</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>WebhookEvents</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -30,6 +34,10 @@
     </classAccesses>
     <classAccesses>
         <apexClass>WebhookReceiver</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>WebhookReprocessAction</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
@@ -110,6 +118,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Webhook_Event__c.Signed_With__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Webhook_Event__c.Source__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -118,8 +131,21 @@
         <field>Webhook_Event__c.Status__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <flowAccesses>
+        <enabled>true</enabled>
+        <flow>Reprocess_Webhook_Event</flow>
+    </flowAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Webhook Receiver</label>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Webhook_Alert__e</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
     <objectPermissions>
         <allowCreate>true</allowCreate>
         <allowDelete>true</allowDelete>

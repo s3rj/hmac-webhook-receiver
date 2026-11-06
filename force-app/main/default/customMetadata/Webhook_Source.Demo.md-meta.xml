@@ -23,6 +23,10 @@
         <value xsi:type="xsd:string">type</value>
     </values>
     <values>
+        <field>Retention_Days__c</field>
+        <value xsi:type="xsd:double">30.0</value>
+    </values>
+    <values>
         <field>Scheme__c</field>
         <value xsi:type="xsd:string">TimestampDotBody</value>
     </values>

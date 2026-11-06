@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Published when a delivery is rejected (bad signature or stale timestamp), a handler fails, or the processor aborts. Subscribe from Flow to post to a channel, open a case, or page someone.</description>
+    <eventType>HighVolume</eventType>
+    <label>Webhook Alert</label>
+    <pluralLabel>Webhook Alerts</pluralLabel>
+    <publishBehavior>PublishAfterCommit</publishBehavior>
+</CustomObject>

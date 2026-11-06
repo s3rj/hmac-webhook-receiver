@@ -112,6 +112,11 @@ private class WebhookDispatcherTest {
         Assert.areEqual('Failed', after.Status__c, 'status recorded');
         Assert.isTrue(after.Error_Message__c.contains('boom'), 'reason recorded: ' + after.Error_Message__c);
         Assert.areEqual(1, after.Attempts__c.intValue(), 'attempt counted');
+        Assert.areEqual(1, WebhookEvents.lastAlerts.size(), 'an alert was raised');
+        Assert.areEqual('Handler Failed', WebhookEvents.lastAlerts[0].Kind__c, 'alert kind');
+        Assert.areEqual(event.Id, WebhookEvents.lastAlerts[0].Event_Id__c, 'alert points at the event');
+        Assert.areEqual(event.External_Event_Id__c, WebhookEvents.lastAlerts[0].External_Event_Id__c, 'alert carries the external id');
+        Assert.isTrue(WebhookEvents.lastAlerts[0].Reason__c.contains('boom'), 'alert carries the reason');
     }
 
     @IsTest
@@ -169,9 +174,13 @@ private class WebhookDispatcherTest {
         Assert.areEqual('Failed', after.Status__c, 'stranded event failed');
         Assert.isTrue(after.Error_Message__c.contains('Apex CPU time limit exceeded'), 'reason recorded');
         Assert.areEqual(1, after.Attempts__c.intValue(), 'attempt counted');
+        Assert.areEqual(1, WebhookEvents.lastAlerts.size(), 'an alert was raised');
+        Assert.areEqual('Processor Aborted', WebhookEvents.lastAlerts[0].Kind__c, 'alert kind');
+        Assert.areEqual(stranded.External_Event_Id__c, WebhookEvents.lastAlerts[0].External_Event_Id__c, 'alert carries the external id');
 
         new WebhookProcessor.Recovery(new List<Id>{ stranded.Id }).execute(new SuccessContext());
         Assert.areEqual('Failed', reload(stranded.Id).Status__c, 'success path leaves events alone');
+        Assert.areEqual(1, WebhookEvents.lastAlerts.size(), 'no alert on success');
     }
 
     private class AbortedContext implements FinalizerContext {
