@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>External_Event_Id__c</fullName>
+    <caseSensitive>true</caseSensitive>
+    <description>"source:event id" from the sender. Unique, so a redelivered event is accepted and ignored instead of processed twice.</description>
+    <externalId>true</externalId>
+    <label>External Event Id</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

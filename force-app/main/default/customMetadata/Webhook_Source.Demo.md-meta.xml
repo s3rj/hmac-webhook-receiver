@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Demo</label>
+    <protected>false</protected>
+    <values>
+        <field>Active__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>Event_Id_Header__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Event_Id_Path__c</field>
+        <value xsi:type="xsd:string">id</value>
+    </values>
+    <values>
+        <field>Event_Type_Header__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Event_Type_Path__c</field>
+        <value xsi:type="xsd:string">type</value>
+    </values>
+    <values>
+        <field>Scheme__c</field>
+        <value xsi:type="xsd:string">TimestampDotBody</value>
+    </values>
+    <values>
+        <field>Signature_Header__c</field>
+        <value xsi:type="xsd:string">X-Signature</value>
+    </values>
+    <values>
+        <field>Signature_Prefix__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Timestamp_Header__c</field>
+        <value xsi:type="xsd:string">X-Timestamp</value>
+    </values>
+    <values>
+        <field>Tolerance_Seconds__c</field>
+        <value xsi:type="xsd:double">300.0</value>
+    </values>
+</CustomMetadata>

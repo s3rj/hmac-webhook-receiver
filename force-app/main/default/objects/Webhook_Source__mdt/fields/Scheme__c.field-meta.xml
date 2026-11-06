@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Scheme__c</fullName>
+    <description>What the sender signs: the raw body (GitHub style), or "&lt;timestamp&gt;.&lt;body&gt;" with the timestamp from the Timestamp Header (Stripe style).</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Scheme</label>
+    <required>true</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Body</fullName>
+                <default>false</default>
+                <label>Body only</label>
+            </value>
+            <value>
+                <fullName>TimestampDotBody</fullName>
+                <default>false</default>
+                <label>Timestamp "." body</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

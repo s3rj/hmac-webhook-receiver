@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>How to verify and read deliveries from one sender. The Developer Name is the last segment of the webhook URL: /services/apexrest/webhooks/v1/&lt;name&gt;. The shared secret lives in the Webhook Secret custom setting under the same name.</description>
+    <label>Webhook Source</label>
+    <pluralLabel>Webhook Sources</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

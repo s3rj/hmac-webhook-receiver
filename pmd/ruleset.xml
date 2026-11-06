@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="hmac-webhook-receiver"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>Apex rules for hmac-webhook-receiver.</description>
+
+    <rule ref="category/apex/bestpractices.xml">
+        <!-- Tests run as the deploying admin on purpose; there is no second persona to model. -->
+        <exclude name="ApexUnitTestClassShouldHaveRunAs"/>
+    </rule>
+    <rule ref="category/apex/errorprone.xml"/>
+    <rule ref="category/apex/performance.xml"/>
+    <rule ref="category/apex/security.xml">
+        <!-- Webhook Events are system records written by the receiver, which runs as the integration user the
+             sender authenticates as. That user holds the Webhook Receiver permission set; handlers that touch
+             business data (the sample opts Contacts out of email) run with sharing and are the place to add
+             object- and field-level checks for the records they change. -->
+        <exclude name="ApexCRUDViolation"/>
+    </rule>
+</ruleset>
