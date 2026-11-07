@@ -1,8 +1,21 @@
 # hmac-webhook-receiver
 
+[![CI](https://github.com/s3rj/hmac-webhook-receiver/actions/workflows/ci.yml/badge.svg)](https://github.com/s3rj/hmac-webhook-receiver/actions/workflows/ci.yml)
+![Apex on API 68.0](https://img.shields.io/badge/Apex-API%2068.0-00A1E0)
+![41 tests, 96 to 100% coverage per class](https://img.shields.io/badge/tests-41%20passing%2C%2096--100%25%20per%20class-brightgreen)
+[![MIT License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
 Inbound webhooks for Salesforce, done the way the senders' own docs ask for and most Apex endpoints skip: HMAC-SHA256 signature verification with a timestamp window and a constant-time compare, replay and redelivery protection through a unique event id, secret rotation without a window of rejected deliveries, handlers configured in metadata and run in or out of the request, a Reprocess button, an alert event, and a record of every delivery, including the ones that were rejected.
 
 `POST /services/apexrest/webhooks/v1/<source>`
+
+**At a glance**
+
+- **The problem:** every SaaS tool wants to push events into Salesforce, and the usual Apex REST endpoint takes anything that arrives, processes redeliveries twice, loses the events whose handler threw, and cannot rotate its secret without dropping traffic.
+- **What this is:** one endpoint for every sender. `Webhook_Source__mdt` says how a sender signs; the gateway verifies, deduplicates on the sender's event id, stores the delivery, and routes it to a handler class named in `Webhook_Handler__mdt`, in the request or in a queueable.
+- **Proof:** 41 tests, 96–100% coverage per class, validated in a Developer Edition org on API 68.0; a live secret rotation accepted and flagged a delivery signed with the old secret, accepted the new one, and rejected a forgery.
+- **Try it:** deploy, assign `Webhook_Receiver`, enter a secret in Setup, run `scripts/send-demo.sh`, then watch the Webhook Events tab and press **Reprocess** on a failed one.
+- **Where to look first:** `WebhookSignature` (both schemes, the constant-time compare, rotation), `WebhookGateway` (the pipeline, independent of `RestContext`), `WebhookEvents` (dedup on the unique key, status transitions, alerts), `WebhookDispatcher` (metadata-driven handlers, sync or async, reprocess), and `WebhookReceiverTest`, which drives the real REST shell with the shipped GitHub and Stripe-style sources.
 
 ## Why an org needs it
 
@@ -122,6 +135,17 @@ pmd check -d force-app -R pmd/ruleset.xml -f text     # static analysis, same ru
 Validated in a Developer Edition org on API 68.0: 41 tests, 96–100% coverage per class, and a live secret rotation through `scripts/send-demo.sh`: with the old secret moved to Previous Secret, a delivery signed with it was accepted and flagged `Previous`, one signed with the new secret came through as `Current`, and one signed with a wrong secret was rejected with `signature mismatch`.
 
 Tests drive the real REST shell through `RestContext` with the shipped GitHub and Demo source metadata, sign requests with the same `hmacHex` the receiver uses, and cover tampering, replays, redelivery, rotation, missing ids, unknown sources, sync and async handlers, handler failures, re-processing, alerts, the purge, and the finalizer.
+
+## Part of a set
+
+Three Salesforce patterns generalized from production work and rebuilt from scratch with tests and CI, plus a CLI for the schema side:
+
+- [sandbox-data-mask](https://github.com/s3rj/sandbox-data-mask): the data in your sandboxes
+- [integration-log-retry](https://github.com/s3rj/integration-log-retry): outbound callouts that log, retry, and recover
+- [hmac-webhook-receiver](https://github.com/s3rj/hmac-webhook-receiver): this project, inbound webhooks that are verified, deduplicated, and reprocessable
+- [flow-hardcoded-id-scanner](https://github.com/s3rj/flow-hardcoded-id-scanner): a CI gate that finds hard-coded record Ids in Flow and other metadata
+
+More at [github.com/s3rj](https://github.com/s3rj).
 
 ## License
 
