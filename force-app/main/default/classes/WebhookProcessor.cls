@@ -26,7 +26,8 @@ public without sharing class WebhookProcessor implements Queueable {
         }
     }
 
-    public class Recovery implements Finalizer {
+    /** Without sharing, like the job itself: a stranded event must be marked whatever the running user can see. */
+    public without sharing class Recovery implements Finalizer {
         private final List<Id> eventIds;
 
         public Recovery(List<Id> eventIds) {
@@ -49,9 +50,7 @@ public without sharing class WebhookProcessor implements Queueable {
                 event.Error_Message__c = WebhookEvents.clip(reason, WebhookEvents.ERROR_MAX);
             }
             update stranded;
-            for (Webhook_Event__c event : stranded) {
-                WebhookEvents.alert(WebhookEvents.ALERT_PROCESSOR_ABORTED, event, reason);
-            }
+            WebhookEvents.alertAll(WebhookEvents.ALERT_PROCESSOR_ABORTED, stranded, reason);
         }
     }
 }

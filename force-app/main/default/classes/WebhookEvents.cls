@@ -41,17 +41,21 @@ public without sharing class WebhookEvents {
         if (result.isSuccess()) {
             return new StoreResult(event, false);
         }
+        Boolean duplicateKey = false;
         for (Database.Error error : result.getErrors()) {
             if (error.getStatusCode() == StatusCode.DUPLICATE_VALUE) {
-                List<Webhook_Event__c> existing = [
-                    SELECT Id, Status__c, External_Event_Id__c
-                    FROM Webhook_Event__c
-                    WHERE External_Event_Id__c = :event.External_Event_Id__c
-                    LIMIT 1
-                ];
-                if (!existing.isEmpty()) {
-                    return new StoreResult(existing[0], true);
-                }
+                duplicateKey = true;
+            }
+        }
+        if (duplicateKey) {
+            List<Webhook_Event__c> existing = [
+                SELECT Id, Status__c, External_Event_Id__c
+                FROM Webhook_Event__c
+                WHERE External_Event_Id__c = :event.External_Event_Id__c
+                LIMIT 1
+            ];
+            if (!existing.isEmpty()) {
+                return new StoreResult(existing[0], true);
             }
         }
         throw new DmlException('Could not store webhook event: ' + result.getErrors()[0].getMessage());
@@ -103,16 +107,27 @@ public without sharing class WebhookEvents {
      * someone. Kinds: Rejected (bad signature or stale timestamp), Handler Failed, Processor Aborted.
      */
     public static void alert(String kind, Webhook_Event__c event, String reason) {
-        Webhook_Alert__e alert = new Webhook_Alert__e(
-            Kind__c = kind,
-            Source__c = clip(event.Source__c, 80),
-            Event_Type__c = clip(event.Event_Type__c, 255),
-            External_Event_Id__c = clip(event.External_Event_Id__c, 255),
-            Event_Id__c = event.Id,
-            Reason__c = clip(reason, ERROR_MAX)
-        );
-        lastAlerts.add(alert);
-        EventBus.publish(alert);
+        alertAll(kind, new List<Webhook_Event__c>{ event }, reason);
+    }
+
+    /** One publish call for many events, for the paths that fail a whole batch at once. */
+    public static void alertAll(String kind, List<Webhook_Event__c> events, String reason) {
+        List<Webhook_Alert__e> alerts = new List<Webhook_Alert__e>();
+        for (Webhook_Event__c event : events) {
+            alerts.add(new Webhook_Alert__e(
+                Kind__c = kind,
+                Source__c = clip(event.Source__c, 80),
+                Event_Type__c = clip(event.Event_Type__c, 255),
+                External_Event_Id__c = clip(event.External_Event_Id__c, 255),
+                Event_Id__c = event.Id,
+                Reason__c = clip(reason, ERROR_MAX)
+            ));
+        }
+        if (alerts.isEmpty()) {
+            return;
+        }
+        lastAlerts.addAll(alerts);
+        EventBus.publish(alerts);
     }
 
     public static String clip(String value, Integer max) {
