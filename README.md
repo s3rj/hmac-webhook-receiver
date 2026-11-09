@@ -17,6 +17,26 @@ Inbound webhooks for Salesforce, done the way the senders' own docs ask for and 
 - **Try it:** deploy, assign `Webhook_Receiver`, enter a secret in Setup, run `scripts/send-demo.sh`, then watch the Webhook Events tab and press **Reprocess** on a failed one.
 - **Where to look first:** `WebhookSignature` (both schemes, the constant-time compare, rotation), `WebhookGateway` (the pipeline, independent of `RestContext`), `WebhookEvents` (dedup on the unique key, status transitions, alerts), `WebhookDispatcher` (metadata-driven handlers, sync or async, reprocess), and `WebhookReceiverTest`, which drives the real REST shell with the shipped GitHub and Stripe-style sources.
 
+## What admins see
+
+Taken in the Developer Edition org the tests run in; every record below came through the real endpoint.
+
+**The morning check.** A delivery whose handler threw, with the handler class and attempt count in the row.
+
+![The Needs Attention list view: one Failed event for contact.unsubscribed, handler ContactUnsubscribeHandler](docs/images/needs-attention.png)
+
+**A rejected delivery.** The signature did not verify, so no payload was stored; the headers and the reason were, for the security review.
+
+![A Webhook Event record page: Rejected, error message "signature mismatch", the X-Timestamp and X-Signature headers kept](docs/images/rejected-record.png)
+
+**A failed delivery, and the Reprocess button.** The event keeps the reason and stack trace, Signed With records which secret the sender used, and Reprocess runs the handler again once the cause is fixed.
+
+![A Webhook Event record page: Failed, error "payload has no email" with the stack trace, Signed With Current, the Reprocess button in the header](docs/images/failed-record.png)
+
+**Rotation in progress.** The On Previous Secret view lists deliveries still signed with the old secret. When it stays empty, clear the previous secret.
+
+![The On Previous Secret list view: one Processed event signed with the previous secret](docs/images/on-previous-secret.png)
+
 ## Why an org needs it
 
 Every SaaS tool the business buys wants to push events into Salesforce: payments settled, documents signed, tickets closed, contacts unsubscribed. The usual Apex REST endpoint parses the body and updates a record, and that is all. Nobody checks the signature, so anyone who finds the URL can create records; redeliveries (every sender retries) create duplicates; a handler that throws returns a 500, the sender retries, and the duplicates multiply; the integration user's secret has never been rotated because rotating it would drop deliveries; and when something goes wrong there is no record of what arrived. Each new sender gets a new endpoint and the same gaps.
@@ -70,7 +90,9 @@ WebhookEventPurge (daily, 02:30) ─► deletes settled events past the source's
 | Event Type Header / Path | Where the event type is | `X-GitHub-Event` | path `type` |
 | Retention Days | Settled events are deleted after this; default 30 | | `30` |
 
-Then add a `Webhook_Secret__c` record named after the source with the shared secret, and one or more `Webhook_Handler__mdt` rows.
+Then add a `Webhook_Secret__c` record named after the source with the shared secret, and one or more `Webhook_Handler__mdt` rows. The shipped layouts show every field in Setup:
+
+![The Demo Webhook Source record in Setup: scheme, signature and timestamp headers, tolerance, event id and type paths, retention](docs/images/source-config.png)
 
 ## Write a handler
 
@@ -111,6 +133,10 @@ The sample handler (`ContactUnsubscribeHandler`, registered for `Demo` / `contac
 | Failed | Handler threw (or the processor died); `Error Message` has the reason | Runs the handler again |
 | Ignored | No active handler for the source and type | Runs the handler now that one exists |
 | Rejected | Signature or timestamp check failed; no payload stored | Nothing; the sender has to send it again |
+
+The button answers on the spot. Here the handler threw again because the payload still had no email, which is the honest outcome:
+
+![The Reprocess outcome screen reads Failed, with a legend for the other outcomes](docs/images/reprocess-outcome.png)
 
 - **Rotating a secret:** on the source's `Webhook_Secret__c` record, copy **Secret** into **Previous Secret**, paste the new secret into **Secret**, then update the sender. Watch **On Previous Secret**; when it stops filling, clear **Previous Secret**. No delivery is rejected at any point.
 - **Alerting:** build a platform-event-triggered flow on `Webhook_Alert__e` (kind, source, event type, external id, event record id, reason). Route `Rejected` to security and `Handler Failed` to the integration owner; throttle in the flow if a sender is noisy.
